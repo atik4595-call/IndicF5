@@ -1,67 +1,73 @@
-# **IndicF5: High-Quality Text-to-Speech for Indian Languages**
+# IndicF5
 
-[![Hugging Face](https://img.shields.io/badge/HuggingFace-Model-orange)](https://huggingface.co/ai4bharat/IndicF5)
+IndicF5 is a multilingual text-to-speech model for Indian languages. The
+package keeps the original `f5_tts/` module paths, model code, prompt assets,
+and language-specific model behavior. Inference uses the released
+`ai4bharat/IndicF5` Hugging Face model; F5-TTS's Chinese pinyin conversion is
+not substituted for IndicF5's own tokenizer/pipeline.
 
+## Install
 
-We release **IndicF5**, a **near-human polyglot** **Text-to-Speech (TTS)** model trained on **1417 hours** of high-quality speech from **[Rasa](https://huggingface.co/datasets/ai4bharat/Rasa), [IndicTTS](https://www.iitm.ac.in/donlab/indictts/database), [LIMMITS](https://sites.google.com/view/limmits24/), and [IndicVoices-R](https://huggingface.co/datasets/ai4bharat/indicvoices_r)**.  
+Use Python 3.10 or later. For Python 3.13, install a matching PyTorch and
+torchaudio build for the runtime (including the desired CUDA build in Colab),
+then install this project:
 
-IndicF5 supports **11 Indian languages**:  
-**Assamese, Bengali, Gujarati, Hindi, Kannada, Malayalam, Marathi, Odia, Punjabi, Tamil, Telugu.**  
-
----
-
-## 🚀 Installation
 ```bash
-conda create -n indicf5 python=3.10 -y
-conda activate indicf5
-pip install git+https://github.com/ai4bharat/IndicF5.git
+pip install -r requirements.txt
+pip install -e .
 ```
 
+The Python 3.13 dependency markers select a NumPy 2.x and PyTorch 2.6+
+compatible baseline. PyTorch wheels depend on platform and CUDA; for Colab,
+keep its preinstalled PyTorch build when it satisfies the version requirement,
+and ensure `torch` and `torchaudio` versions match. The repository has not been
+runtime-tested on every Colab accelerator/runtime combination.
 
-## 🎙 Usage
+## Gradio web UI
 
-To generate speech, you need to provide **three inputs**:
-1. **Text to synthesize** – The content you want the model to speak.
-2. **A reference prompt audio** – An example speech clip that guides the model’s prosody and speaker characteristics.
-3. **Text spoken in the reference prompt audio** – The transcript of the reference prompt audio.
+Start the UI from the repository root:
 
+```bash
+python -m f5_tts.infer.infer_gradio --host 0.0.0.0 --port 7860
+```
+
+Model weights are loaded at the first synthesis request, then cached for reuse.
+Use the model field for a local model directory or another compatible model ID.
+
+## Command-line inference
+
+```bash
+python -m f5_tts.infer.infer_cli \
+  --ref_audio prompts/PAN_F_HAPPY_00001.wav \
+  --ref_text "Reference transcript" \
+  --gen_text "Text to synthesize" \
+  --output_file samples/output.wav
+```
+
+Or provide UTF-8 input from a text file with `--gen_file`. Use `--help` for all
+options. For programmatic inference, import `IndicF5` from `f5_tts.api`.
+
+## Python API
 
 ```python
-from transformers import AutoModel
-import numpy as np
-import soundfile as sf
+from f5_tts.api import IndicF5
 
-# Load INF5 from Hugging Face
-repo_id = "ai4bharat/IndicF5"
-model = AutoModel.from_pretrained(repo_id, trust_remote_code=True)
-
-# Generate speech
+model = IndicF5()
 audio = model(
-    "नमस्ते! संगीत की तरह जीवन भी खूबसूरत होता है, बस इसे सही ताल में जीना आना चाहिए.",
+    "নমস্কার, কেমন আছেন?",
     ref_audio_path="prompts/PAN_F_HAPPY_00001.wav",
-    ref_text="ਭਹੰਪੀ ਵਿੱਚ ਸਮਾਰਕਾਂ ਦੇ ਭਵਨ ਨਿਰਮਾਣ ਕਲਾ ਦੇ ਵੇਰਵੇ ਗੁੰਝਲਦਾਰ ਅਤੇ ਹੈਰਾਨ ਕਰਨ ਵਾਲੇ ਹਨ, ਜੋ ਮੈਨੂੰ ਖੁਸ਼ ਕਰਦੇ  ਹਨ।"
+    ref_text="Reference audio transcript",
 )
-
-# Normalize and save output
-if audio.dtype == np.int16:
-    audio = audio.astype(np.float32) / 32768.0
-sf.write("samples/namaste.wav", np.array(audio, dtype=np.float32), samplerate=24000)
 ```
 
-## References
+A supplied reference transcript avoids loading an additional ASR model. To
+transcribe audio automatically, use the model's documented native API and
+install its corresponding ASR dependencies; this repository's Gradio form
+keeps the transcript explicit/optional rather than silently downloading an
+extra speech-recognition model.
 
-We would like to extend our gratitude to the authors of  **[F5-TTS](https://github.com/SWivid/F5-TTS)** for their invaluable contributions and inspiration to this work. Their efforts have played a crucial role in advancing  the field of text-to-speech synthesis.
+## Languages and tokenizer
 
-
-## 📖 Citation
-If you use **IndicF5** in your research or projects, please consider citing it:
-
-### 🔹 BibTeX
-```bibtex
-@misc{AI4Bharat_IndicF5_2025,
-  author       = {Praveen S V and Srija Anand and Soma Siddhartha and Mitesh M. Khapra},
-  title        = {IndicF5: High-Quality Text-to-Speech for Indian Languages},
-  year         = {2025},
-  url          = {https://github.com/AI4Bharat/IndicF5},
-}
-
+Use Indic-language text supported by the selected IndicF5 checkpoint. The UI
+does not impose a restrictive language allowlist. Existing tokenizer/model
+files, prompt paths, and required language dependencies are preserved.
