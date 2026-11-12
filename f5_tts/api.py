@@ -22,9 +22,19 @@ DEFAULT_MODEL_ID = "ai4bharat/IndicF5"
 
 @lru_cache(maxsize=2)
 def _load_model(model_id):
+    # IndicF5's remote model code keeps its internal DiT/vocoder on CPU
+    # until the first forward pass unless the wrapper is moved explicitly.
+    # Place the complete model on CUDA up front when it is available.
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = AutoModel.from_pretrained(model_id, trust_remote_code=True)
+    if hasattr(model, "to"):
+        model = model.to(device)
     if hasattr(model, "eval"):
         model.eval()
+
+    print(f"[IndicF5] Model loaded on {device}")
+    if device.type == "cuda":
+        print(f"[IndicF5] GPU: {torch.cuda.get_device_name(device)}")
     return model
 
 
