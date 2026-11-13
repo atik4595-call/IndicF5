@@ -22,7 +22,8 @@ import torchaudio
 import tqdm
 from huggingface_hub import snapshot_download, hf_hub_download
 from pydub import AudioSegment, silence
-from transformers import pipeline
+# Optional ASR pipeline is imported lazily only when reference text is missing.
+pipeline = None
 from vocos import Vocos
 
 from f5_tts.model import CFM
@@ -135,6 +136,11 @@ asr_pipe = None
 
 
 def initialize_asr_pipeline(device: str = device, dtype=None):
+    # Avoid importing TensorFlow/Protobuf on the normal PyTorch TTS inference path.
+    global pipeline
+    if pipeline is None:
+        from transformers import pipeline as transformers_pipeline
+        pipeline = transformers_pipeline
     if dtype is None:
         dtype = (
             torch.float16
